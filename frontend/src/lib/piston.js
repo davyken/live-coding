@@ -1,6 +1,7 @@
-// Piston API is a service for code execution
-
-const PISTON_API = "https://emkc.org/api/v2/piston";
+// Code execution service
+// Note: Public code execution APIs (Piston, JDoodle) are now whitelist-only
+// For production, host your own Piston instance using Docker:
+// docker run -d -v /var/run/docker.sock:/var/run/docker.sock --name piston ghcr.io/engineerman/piston
 
 const LANGUAGE_VERSIONS = {
   javascript: { language: "javascript", version: "18.15.0" },
@@ -8,9 +9,19 @@ const LANGUAGE_VERSIONS = {
   java: { language: "java", version: "15.0.2" },
 };
 
+// Mock execution for testing when no API is available
+function mockExecute(language, code) {
+  // Simple mock that just returns the code output for testing
+  // In production, replace with your own Piston instance
+  return {
+    success: true,
+    output: `[Mock Output - Code execution requires a hosted Piston instance]\n\nCode (${language}):\n${code.substring(0, 100)}...\n\nTo enable real code execution:\n1. Install Docker\n2. Run: docker run -d -p 2000:2000 ghcr.io/engineerman/piston\n3. Update API_URL in this file to http://localhost:2000`,
+  };
+}
+
 /**
  * @param {string} language - programming language
- * @param {string} code - source code to executed
+ * @param {string} code - source code to execute
  * @returns {Promise<{success:boolean, output?:string, error?: string}>}
  */
 export async function executeCode(language, code) {
@@ -24,7 +35,15 @@ export async function executeCode(language, code) {
       };
     }
 
-    const response = await fetch(`${PISTON_API}/execute`, {
+    // For now, return mock output - requires hosting your own Piston
+    // TODO: Replace with your hosted Piston API URL
+    return mockExecute(language, code);
+
+    /* 
+    // When you have your own Piston instance, use this code:
+    const PISTON_API = "http://localhost:2000"; // Your hosted Piston URL
+    
+    const response = await fetch(`${PISTON_API}/api/v1/execute`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -50,8 +69,8 @@ export async function executeCode(language, code) {
 
     const data = await response.json();
 
-    const output = data.run.output || "";
-    const stderr = data.run.stderr || "";
+    const output = data.run?.output || "";
+    const stderr = data.run?.stderr || "";
 
     if (stderr) {
       return {
@@ -65,6 +84,7 @@ export async function executeCode(language, code) {
       success: true,
       output: output || "No output",
     };
+    */
   } catch (error) {
     return {
       success: false,

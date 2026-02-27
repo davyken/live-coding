@@ -1,9 +1,24 @@
 import { requireAuth } from "@clerk/express";
 import User from "../models/User.js";
 
+// TEMPORARY BYPASS FOR TESTING - Set to true to disable auth
+const DISABLE_AUTH = true;
+
 export const protectRoute = [
   requireAuth(),
   async (req, res, next) => {
+    // Skip auth check if bypass is enabled
+    if (DISABLE_AUTH) {
+      // Create a mock user for testing
+      req.user = {
+        _id: "69a1868596ece77ace23225d",
+        clerkId: "test_user_123",
+        name: "Test User",
+        email: "test@example.com"
+      };
+      return next();
+    }
+
     try {
       const clerkId = req.auth().userId;
 

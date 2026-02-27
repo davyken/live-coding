@@ -98,6 +98,10 @@ export async function joinSession(req, res) {
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
 
+    // TEMPORARY BYPASS FOR TESTING - Allow any user to join
+    // In production, remove this bypass
+    const TESTING_BYPASS = true;
+
     const session = await Session.findById(id);
 
     if (!session) return res.status(404).json({ message: "Session not found" });
@@ -106,14 +110,34 @@ export async function joinSession(req, res) {
       return res.status(400).json({ message: "Cannot join a completed session" });
     }
 
-    if (session.host.toString() === userId.toString()) {
+    // Skip host check for testing
+    if (!TESTING_BYPASS && session.host.toString() === userId.toString()) {
       return res.status(400).json({ message: "Host cannot join their own session as participant" });
     }
 
     // check if session is already full - has a participant
     if (session.participant) return res.status(409).json({ message: "Session is full" });
 
-    session.participant = userId;
+    // For testing, create a mock participant if using bypass
+    if (TESTING_BYPASS) {
+      // Create a test user in DB if not exists
+      const User = (await import("../models/User.js")).default;
+      let participant = await User.findOne({ clerkId });
+      
+      if (!participant) {
+        participant = await User.create({
+          name: "Test Participant",
+          email: "participant@test.com",
+          clerkId: clerkId,
+          profileImage: ""
+        });
+      }
+      
+      session.participant = participant._id;
+    } else {
+      session.participant = userId;
+    }
+    
     await session.save();
 
     const channel = chatClient.channel("messaging", session.callId);
