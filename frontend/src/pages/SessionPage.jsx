@@ -7,7 +7,7 @@ import { executeCode } from "../lib/piston";
 import Navbar from "../components/Navbar";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { getDifficultyBadgeClass } from "../lib/utils";
-import { Loader2Icon, LogOutIcon, PhoneOffIcon } from "lucide-react";
+import { Loader2Icon, LogOutIcon, PhoneOffIcon, CopyIcon, ShareIcon } from "lucide-react";
 import CodeEditorPanel from "../components/CodeEditorPanel";
 import OutputPanel from "../components/OutputPanel";
 
@@ -21,6 +21,7 @@ function SessionPage() {
   const { user } = useUser();
   const [output, setOutput] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const { data: sessionData, isLoading: loadingSession, refetch } = useSessionById(id);
 
@@ -95,6 +96,13 @@ function SessionPage() {
     }
   };
 
+  const handleCopySessionLink = () => {
+    const url = `${window.location.origin}/session/${id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="h-screen bg-base-100 flex flex-col">
       <Navbar />
@@ -124,6 +132,22 @@ function SessionPage() {
                       </div>
 
                       <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleCopySessionLink}
+                          className="btn btn-ghost btn-sm gap-2"
+                          title="Copy invite link"
+                        >
+                          {copied ? (
+                            <>
+                              <span className="text-success">✓ Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShareIcon className="w-4 h-4" />
+                              Share
+                            </>
+                          )}
+                        </button>
                         <span
                           className={`badge badge-lg ${getDifficultyBadgeClass(
                             session?.difficulty

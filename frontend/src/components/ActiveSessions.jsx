@@ -6,11 +6,22 @@ import {
   UsersIcon,
   ZapIcon,
   LoaderIcon,
+  CopyIcon,
 } from "lucide-react";
 import { Link } from "react-router";
 import { getDifficultyBadgeClass } from "../lib/utils";
+import { useState } from "react";
 
 function ActiveSessions({ sessions, isLoading, isUserInSession }) {
+  const [copiedId, setCopiedId] = useState(null);
+
+  const copySessionLink = (sessionId) => {
+    const url = `${window.location.origin}/session/${sessionId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(sessionId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <div className="lg:col-span-2 card bg-base-100 border-2 border-primary/20 hover:border-primary/30 h-full">
       <div className="card-body">
@@ -84,10 +95,23 @@ function ActiveSessions({ sessions, isLoading, isUserInSession }) {
                   {session.participant && !isUserInSession(session) ? (
                     <button className="btn btn-disabled btn-sm">Full</button>
                   ) : (
-                    <Link to={`/session/${session._id}`} className="btn btn-primary btn-sm gap-2">
-                      {isUserInSession(session) ? "Rejoin" : "Join"}
-                      <ArrowRightIcon className="size-4" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => copySessionLink(session._id)}
+                        className="btn btn-ghost btn-sm btn-square"
+                        title="Copy invite link"
+                      >
+                        {copiedId === session._id ? (
+                          <span className="text-success text-xs">✓</span>
+                        ) : (
+                          <CopyIcon className="size-4" />
+                        )}
+                      </button>
+                      <Link to={`/session/${session._id}`} className="btn btn-primary btn-sm gap-2">
+                        {isUserInSession(session) ? "Rejoin" : "Join"}
+                        <ArrowRightIcon className="size-4" />
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>
