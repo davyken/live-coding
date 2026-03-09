@@ -137,7 +137,14 @@ export async function joinSession(req, res) {
     }
 
     // check if session is already full - has a participant
-    if (session.participant) return res.status(409).json({ message: "Session is full" });
+    if (session.participant) {
+      // If the user is already the participant, just return success
+      const participantId = session.participant.toString();
+      if (participantId === userId.toString() || TESTING_BYPASS) {
+        return res.status(200).json({ session, message: "Already joined this session" });
+      }
+      return res.status(409).json({ message: "Session is full" });
+    }
 
     // For testing, create a mock participant if using bypass
     if (TESTING_BYPASS) {
