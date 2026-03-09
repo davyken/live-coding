@@ -85,7 +85,21 @@ function SessionPage() {
     setOutput(null);
 
     const result = await executeCode(selectedLanguage, code);
-    setOutput(result);
+    
+    // Compare output with expected output
+    const expected = problemData?.expectedOutput?.[selectedLanguage];
+    const userOutput = result.output?.trim();
+    const expectedOutput = expected?.trim();
+    
+    // Determine if solution is correct
+    const isCorrect = userOutput === expectedOutput;
+    
+    setOutput({
+      ...result,
+      isCorrect,
+      expectedOutput: expectedOutput || null,
+      compared: !!expected
+    });
     setIsRunning(false);
   };
 
