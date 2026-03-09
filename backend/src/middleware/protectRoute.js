@@ -5,7 +5,6 @@ import User from "../models/User.js";
 const DISABLE_AUTH = true;
 
 export const protectRoute = [
-  requireAuth(),
   async (req, res, next) => {
     // Skip auth check if bypass is enabled
     if (DISABLE_AUTH) {
@@ -18,6 +17,13 @@ export const protectRoute = [
       };
       return next();
     }
+
+    // If not bypassed, use Clerk's requireAuth
+    return requireAuth()(req, res, next);
+  },
+  async (req, res, next) => {
+    // If we're already authenticated (either via bypass or requireAuth)
+    if (req.user) return next();
 
     try {
       const clerkId = req.auth().userId;

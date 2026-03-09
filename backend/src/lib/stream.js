@@ -5,12 +5,21 @@ import { ENV } from "./env.js";
 const apiKey = ENV.STREAM_API_KEY;
 const apiSecret = ENV.STREAM_API_SECRET;
 
-if (!apiKey || !apiSecret) {
-  console.error("STREAM_API_KEY or STREAM_API_SECRET is missing");
+// Check if credentials are valid (not placeholder values)
+const isValidCredentials = apiKey && apiSecret && 
+  apiKey.length > 10 && 
+  !apiKey.includes(" ") &&
+  apiSecret.length > 10;
+
+if (!isValidCredentials) {
+  console.warn("⚠️  Stream API credentials are missing or invalid. Video/chat features will be disabled.");
+  console.warn("   To enable, add valid STREAM_API_KEY and STREAM_API_SECRET to .env");
 }
 
-export const chatClient = StreamChat.getInstance(apiKey, apiSecret); // will be used chat features
-export const streamClient = new StreamClient(apiKey, apiSecret); // will be used for video calls
+export const chatClient = isValidCredentials ? StreamChat.getInstance(apiKey, apiSecret) : null;
+export const streamClient = isValidCredentials ? new StreamClient(apiKey, apiSecret) : null;
+
+export const isStreamEnabled = () => isValidCredentials;
 
 export const upsertStreamUser = async (userData) => {
   try {

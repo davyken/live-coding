@@ -1,4 +1,4 @@
-import { chatClient, streamClient } from "../lib/stream.js";
+import { chatClient, streamClient, isStreamEnabled } from "../lib/stream.js";
 import Session from "../models/Session.js";
 
 export async function createSession(req, res) {
@@ -17,24 +17,45 @@ export async function createSession(req, res) {
     // create session in db
     const session = await Session.create({ problem, difficulty, host: userId, callId });
 
-    // create stream video call
-    await streamClient.video.call("default", callId).getOrCreate({
-      data: {
-        created_by_id: clerkId,
-        custom: { problem, difficulty, sessionId: session._id.toString() },
-      },
+    // Try to create Stream video call (graceful failure)
+    let streamCreated = false;
+    if (isStreamEnabled()) {
+      try {
+        await streamClient.video.call("default", callId).getOrCreate({
+          data: {
+            created_by_id: clerkId,
+            custom: { problem, difficulty, sessionId: session._id.toString() },
+          },
+        });
+        streamCreated = true;
+      } catch (streamError) {
+        console.log("Stream video call creation failed:", streamError.message);
+      }
+    }
+
+    // Try to create chat channel (graceful failure)
+    let chatCreated = false;
+    if (isStreamEnabled()) {
+      try {
+        const channel = chatClient.channel("messaging", callId, {
+          name: `${problem} Session`,
+          created_by_id: clerkId,
+          members: [clerkId],
+        });
+
+        await channel.create();
+        chatCreated = true;
+      } catch (chatError) {
+        console.log("Stream chat channel creation failed:", chatError.message);
+      }
+    }
+
+    // Return session info - caller should handle case where Stream is not available
+    res.status(201).json({ 
+      session, 
+      streamEnabled: streamCreated,
+      chatEnabled: chatCreated 
     });
-
-    // chat messaging
-    const channel = chatClient.channel("messaging", callId, {
-      name: `${problem} Session`,
-      created_by_id: clerkId,
-      members: [clerkId],
-    });
-
-    await channel.create();
-
-    res.status(201).json({ session });
   } catch (error) {
     console.log("Error in createSession controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -140,8 +161,15 @@ export async function joinSession(req, res) {
     
     await session.save();
 
-    const channel = chatClient.channel("messaging", session.callId);
-    await channel.addMembers([clerkId]);
+    // Try to add member to chat channel
+    if (isStreamEnabled() && chatClient) {
+      try {
+        const channel = chatClient.channel("messaging", session.callId);
+        await channel.addMembers([clerkId]);
+      } catch (chatError) {
+        console.log("Stream chat addMembers failed:", chatError.message);
+      }
+    }
 
     res.status(200).json({ session });
   } catch (error) {
@@ -169,13 +197,25 @@ export async function endSession(req, res) {
       return res.status(400).json({ message: "Session is already completed" });
     }
 
-    // delete stream video call
-    const call = streamClient.video.call("default", session.callId);
-    await call.delete({ hard: true });
+    // Try to delete Stream video call (graceful failure)
+    if (isStreamEnabled()) {
+      try {
+        const call = streamClient.video.call("default", session.callId);
+        await call.delete({ hard: true });
+      } catch (streamError) {
+        console.log("Stream video call deletion failed:", streamError.message);
+      }
+    }
 
-    // delete stream chat channel
-    const channel = chatClient.channel("messaging", session.callId);
-    await channel.delete();
+    // Try to delete Stream chat channel (graceful failure)
+    if (isStreamEnabled()) {
+      try {
+        const channel = chatClient.channel("messaging", session.callId);
+        await channel.delete();
+      } catch (chatError) {
+        console.log("Stream chat channel deletion failed:", chatError.message);
+      }
+    }
 
     session.status = "completed";
     await session.save();

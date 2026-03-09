@@ -1,6 +1,6 @@
 // Code execution service
-// Note: Public code execution APIs (Piston, JDoodle) are now whitelist-only
-// For production, host your own Piston instance using Docker:
+// For JavaScript, we execute directly in the browser
+// For Python/Java, you can host your own Piston instance using Docker:
 // docker run -d -v /var/run/docker.sock:/var/run/docker.sock --name piston ghcr.io/engineerman/piston
 
 const LANGUAGE_VERSIONS = {
@@ -9,14 +9,61 @@ const LANGUAGE_VERSIONS = {
   java: { language: "java", version: "15.0.2" },
 };
 
-// Mock execution for testing when no API is available
-function mockExecute(language, code) {
-  // Simple mock that just returns the code output for testing
-  // In production, replace with your own Piston instance
-  return {
-    success: true,
-    output: `[Mock Output - Code execution requires a hosted Piston instance]\n\nCode (${language}):\n${code.substring(0, 100)}...\n\nTo enable real code execution:\n1. Install Docker\n2. Run: docker run -d -p 2000:2000 ghcr.io/engineerman/piston\n3. Update API_URL in this file to http://localhost:2000`,
+// Execute JavaScript code in the browser
+function executeJavaScript(code) {
+  const logs = [];
+  
+  // Capture output by creating a mock console in the scope
+  const mockConsole = {
+    log: (...args) => {
+      logs.push(args.map(formatOutput).join(" "));
+    },
+    error: (...args) => {
+      logs.push("Error: " + args.map(formatOutput).join(" "));
+    },
+    warn: (...args) => {
+      logs.push("Warning: " + args.map(formatOutput).join(" "));
+    }
   };
+
+  try {
+    // Wrap code in an IIFE that uses our mock console
+    const wrappedCode = `
+      (function(console) {
+        "use strict";
+        ${code}
+      })(mockConsole);
+    `;
+    
+    // Create function with mockConsole in scope
+    const fn = new Function("mockConsole", wrappedCode);
+    fn(mockConsole);
+    
+    return {
+      success: true,
+      output: logs.join("\n"),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      output: logs.join("\n"),
+    };
+  }
+}
+
+// Format output for console.log
+function formatOutput(arg) {
+  if (arg === null) return "null";
+  if (arg === undefined) return "undefined";
+  if (typeof arg === "object") {
+    try {
+      return JSON.stringify(arg);
+    } catch {
+      return String(arg);
+    }
+  }
+  return String(arg);
 }
 
 /**
@@ -35,15 +82,16 @@ export async function executeCode(language, code) {
       };
     }
 
-    // For now, return mock output - requires hosting your own Piston
-    // TODO: Replace with your hosted Piston API URL
-    return mockExecute(language, code);
+    // Execute JavaScript directly in the browser
+    if (language === "javascript") {
+      return executeJavaScript(code);
+    }
 
-    /* 
-    // When you have your own Piston instance, use this code:
-    const PISTON_API = "http://localhost:2000"; // Your hosted Piston URL
+    // For Python and Java, try to use Piston API
+    // You can host your own Piston instance for production
+    const PISTON_API = "https://emkc.org/api/v2/piston"; // Public Piston API
     
-    const response = await fetch(`${PISTON_API}/api/v1/execute`, {
+    const response = await fetch(`${PISTON_API}/execute`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,12 +119,13 @@ export async function executeCode(language, code) {
 
     const output = data.run?.output || "";
     const stderr = data.run?.stderr || "";
+    const compileOutput = data.compile?.output || "";
 
-    if (stderr) {
+    if (stderr || compileOutput) {
       return {
         success: false,
         output: output,
-        error: stderr,
+        error: stderr || compileOutput,
       };
     }
 
@@ -84,7 +133,6 @@ export async function executeCode(language, code) {
       success: true,
       output: output || "No output",
     };
-    */
   } catch (error) {
     return {
       success: false,

@@ -1,7 +1,14 @@
-import { chatClient } from "../lib/stream.js";
+import { chatClient, isStreamEnabled } from "../lib/stream.js";
 
 export async function getStreamToken(req, res) {
   try {
+    // Check if Stream is enabled
+    if (!isStreamEnabled() || !chatClient) {
+      return res.status(503).json({ 
+        message: "Stream chat is not available. Please configure valid Stream API credentials." 
+      });
+    }
+
     // use clerkId for Stream (not mongodb _id)=> it should match the id we have in the stream dashboard
     const token = chatClient.createToken(req.user.clerkId);
 
