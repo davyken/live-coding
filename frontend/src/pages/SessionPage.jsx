@@ -111,7 +111,8 @@ function SessionPage() {
   };
 
   const handleCopySessionLink = () => {
-    const url = `${window.location.origin}/session/${id}`;
+    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const url = `${appUrl}/session/${id}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

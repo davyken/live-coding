@@ -16,7 +16,8 @@ function ActiveSessions({ sessions, isLoading, isUserInSession }) {
   const [copiedId, setCopiedId] = useState(null);
 
   const copySessionLink = (sessionId) => {
-    const url = `${window.location.origin}/session/${sessionId}`;
+    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const url = `${appUrl}/session/${sessionId}`;
     navigator.clipboard.writeText(url);
     setCopiedId(sessionId);
     setTimeout(() => setCopiedId(null), 2000);
